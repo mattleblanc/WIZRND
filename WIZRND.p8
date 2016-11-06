@@ -3,7 +3,20 @@ version 8
 __lua__
 p1 = {}
 
-function _init()	
+function _init()
+ titleinit() -- does title things.
+end
+
+function titleinit()
+ mode = 0
+end
+
+function gameoverinit()
+ mode = 2
+end
+
+function gameinit()
+mode = 1
 
 norbs=0
 
@@ -89,6 +102,7 @@ function coll(a,b)
     return false
  end
  return true 
+
 end
 
 function grounded()
@@ -112,11 +126,35 @@ function rightwalled()
 end
 
 function _update()
+  if (mode == 0) then --Title Screen mode
+    titleupdate()
+  elseif(mode==2) then
+    gameoverupdate()
+  else
+    gameupdate()
+  end
+end
+
+function titleupdate()
+// print("PRESS Z TO START",64,32,4)
+ if btn(4,0) then
+  gameinit()
+ end
+end
+
+function gameoverupdate()
+// print("PRESS Z TO START",64,32,4)
+ if btn(4,0) then
+  gameinit()
+ end
+end
+
+function gameupdate()
 
   // check object collisions, first off
   for orb in all(orbs) do
    if coll(orb,p1) then
-    game_over()
+    mode=2 -- game over WOMP WOMP WOOOOOMP
    end
    for spell in all(magic) do
      if coll(spell, orb) then
@@ -198,11 +236,11 @@ function _update()
 
  // generate new orbs //
 
-if(norbs<1) then 
+if(norbs<2) then 
    //sfx(01)
  orbgen(flr(rnd(111)-16), flr(rnd(44)-8))
 end
-if(norbs<1) then norbs = norbs+1 end
+if(norbs<2) then norbs = norbs+1 end
 
  // update all orbs //
  // these cruise towards the player at a constant rate
@@ -236,7 +274,24 @@ end
 end
 
 function _draw()
-	cls()
+   if (mode == 0) then --Title Screen mode
+    titledraw()
+  elseif(mode==2) then -- Game Over screen
+   gameoverdraw()
+  else
+    gamedraw()
+  end
+end
+
+function titledraw()
+ cls()
+ print("MLB'S WIZRND", 63, 63, 7)
+  print("PROCJAM 2016", 63, 71, 7)
+ print("PRESS Z TO START",63,96,7)
+end
+
+function gamedraw()
+cls()
 
  print("mlb's wizrnd",0,116,6)
  print(p1.score,55,116,6)
@@ -259,7 +314,7 @@ map(0,0, 0,0, 16,16)
 // draw the orbs
 for orb in all(orbs) do
  spr(33,orb.x,orb.y)
- end
+end
 
 // draw the spells
 for spell in all(magic) do
@@ -337,7 +392,7 @@ for spell in all(magic) do
    end
   end
  end
- if(spell.x>128 or spell.x<-128) then 
+ if(spell.x>119 or spell.x<-119) then 
   del(magic,spell)
  end
 end
@@ -348,11 +403,13 @@ end
 
 end
 
-function game_over()
+function gameoverdraw()
   //sfx(02)
-  print("game over", 63,63)
- _update = update_over
- _draw = draw_over
+  print("game over", 23,63)
+ print("press z to replay", 23,95)
+ if btn(4,0) then
+  gameinit()
+ end
 end
 
 __gfx__
