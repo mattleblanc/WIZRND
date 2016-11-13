@@ -3,6 +3,9 @@ version 8
 __lua__
 
 p1 = {}
+max_orbs = 2
+max_skulls = 1
+max_constellations = 0 -- this will generate one
 
 function _init()
  titleinit() -- does title things.
@@ -21,6 +24,10 @@ mode = 1
 
 norbs=0
 nskulls=0
+enemystep=0
+skullcol1=8
+skullcol1=10
+orbphase=1
 
 p1 = {
  x=32,
@@ -30,43 +37,79 @@ p1 = {
  ddx=0,
  ddy=0,
  facing=1,
+ invincible=0,
  mana=100,
  score=0,
  box={x1=0,y1=0,x2=7,y2=7}
 }
 
 magic = {}
-
 orbs = {}
 skulls = {}
 
 stars = {}
- 
+constellations = {}
+
  for i=1,64 do
   add(stars,{
-   x=rnd(128),
-   y=rnd(128),
-   s=rnd(1)+1
+   x=flr(rnd(128)),
+   y=flr(rnd(108)),
   })
  end 
 end
 
+function genConstellations(stars,nConst)
+ for iConst=0,nConst do
+  
+  linked_stars = {}
+  connections=1
+  distance=60
+
+  start=flr(rnd(64))+1
+  nMid=flr(rnd(3))+1
+  finish=flr(rnd(64))+1
+
+  add(linked_stars,start)
+  add(linked_stars,finish)
+
+  for iMid=0,nMid do
+   nNew = flr(rnd(64))+1
+   add(linked_stars,nNew)
+  end
+
+  for star in all(linked_stars) do
+   for link=0,connections do
+    this_star = flr(rnd(nMid+2))+1
+    if(sqrt(abs(stars[star].x-stars[linked_stars[this_star]].x)*abs(stars[star].x-stars[linked_stars[this_star]].x)+abs(stars[star].y-stars[linked_stars[this_star]].y)*abs(stars[star].y-stars[linked_stars[this_star]].y)) < distance) then
+     add(constellations,{
+         x1=stars[star].x,
+         y1=stars[star].y,
+         x2=stars[linked_stars[this_star]].x,
+         y2=stars[linked_stars[this_star]].y
+        }) 
+     end
+   end
+  end
+ end
+end
+
 // objects //
 
-function spell()
+function spell(v, bx1, by1, bx2, by2)
  local spell = {
   x=p1.x+8*p1.facing,
   y=p1.y+4,
   dx=rnd(1)*2.0*p1.facing+1*p1.facing,
   dy=0.0,
-  kind=1,
+  kind=v,
   element=rnd(2),
   cycle=1,
-  box={x1=0,y1=0,x2=7,y2=7},
+  lifetime=20,
+  box={x1=bx1, y1=by1, x2=bx2, y2=by2},
 }
 
  add(magic,spell)
- p1.mana = p1.mana-100
+ p1.mana = p1.mana-51
  end
 
 function orbgen(initx,inity)
@@ -77,7 +120,7 @@ function orbgen(initx,inity)
   dy=0,
   ddx=0,
   ddy=0,
-  box={x1=0,y1=0,x2=7,y2=7}
+  box={x1=-4,y1=-4,x2=4,y2=4}
  }
  add(orbs,orb)
  end
@@ -90,7 +133,7 @@ function orbgen(initx,inity)
   dy=0,
   ddx=0,
   ddy=0,
-  box={x1=0,y1=0,x2=7,y2=7}
+  box={x1=-4,y1=-4,x2=4,y2=4}
  }
  add(skulls,skull)
  end
@@ -110,7 +153,10 @@ function coll(a,b)
  -- todo
  local box_a = abs_box(a)
  local box_b = abs_box(b)
- 
+
+--rectfill(box_a.x1+5,box_a.y1+5,box_a.x2+5,box_a.y2+5,2)
+
+
  if box_a.x1 > box_b.x2 or
     box_a.y1 > box_b.y2 or
     box_b.x1 > box_a.x2 or
@@ -118,7 +164,23 @@ function coll(a,b)
     return false
  end
  return true 
+end
 
+function coll2(a,b)
+ -- todo
+ --local box_a = abs_box(a)
+ local box_a = a.box
+ local box_b = abs_box(b)
+
+--rectfill(box_a.x1,box_a.y1,box_a.x2,box_a.y2,3)
+--rectfill(box_b.x1,box_b.y1,box_b.x2,box_b.y2,3)
+
+ if ((box_b.x1 > box_a.x1 and box_b.x2 < box_a.x2) 
+   and (box_b.y2 > box_a.y1 and box_b.y1 < box_a.y2)) then
+    return true
+
+  end
+ return false
 end
 
 function grounded()
@@ -153,44 +215,63 @@ end
 
 function titleupdate()
 // print("PRESS Z TO START",64,32,4)
- if btn(4,0) then
+ if btnp(4,0) then
   gameinit()
+  genConstellations(stars,max_constellations)
  end
 end
 
 function gameoverupdate()
 // print("PRESS Z TO START",64,32,4)
- if btn(4,0) then
+ if btnp(4,0) then
   gameinit()
+  genConstellations(stars,max_constellations)
  end
 end
 
 function gameupdate()
 
+ -- disable invincibility for player if they are out of mana
+ if(p1.mana<=0) then p1.invincible=0 end
+ if( not btn(3,0)) then p1.invincible=0 end
+ if(p1.mana<=0 and btn(3,0)) then p1.invincible=0 end
+
   // check object collisions, first off
   for orb in all(orbs) do
    if coll(orb,p1) then
+    if(p1.invincible==1) then
+     p1.score=p1.score+1
+     del(orbs,orb)
+     norbs=norbs-1
+    else
     mode=2 -- game over WOMP WOMP WOOOOOMP
+    end
    end
    for spell in all(magic) do
-     if coll(spell, orb) then
-      p1.score=p1.score+1
-      del(orbs,orb)
-      del(magic,spell)
-      norbs=norbs-1
-     end
+    if ((coll(spell, orb) and spell.kind==1) or (coll2(spell,orb) and spell.kind==2)) then
+     p1.score=p1.score+1
+     del(orbs,orb)
+     if(spell.kind==1) then del(magic,spell) end
+     norbs=norbs-1
     end
+   end
   end
 
   for skull in all(skulls) do
    if coll(skull,p1) then
+    if (p1.invincible==1) then
+     p1.score=p1.score+3
+     del(skulls,skull)
+     nskulls=nskulls-1
+    else
     mode=2 -- game over WOMP WOMP WOOOOOMP
    end
+  end
    for spell in all(magic) do
-     if coll(spell, skull) then
-      p1.score=p1.score+2
+     if ((coll(spell, skull) and spell.kind==1) or (coll2(spell, skull) and spell.kind==2)) then
+      p1.score=p1.score+3
       del(skulls,skull)
-      del(magic,spell)
+      if(spell.kind==1) then del(magic,spell) end
       nskulls=nskulls-1
      end
     end
@@ -230,54 +311,94 @@ function gameupdate()
 		p1.dx *= 0.55
 	end
 
+ if(btn(3,0)) then
+  if ( grounded() ) then
+   if(p1.mana >= 75 and not p1.invincible) then
+    p1.dx = 0
+    p1.dy = 0
+    p1.ddx = 0
+    p1.ddy = 0
+    p1.y = flr(flr(p1.y+1)/8)*8
+    p1.invincible=1
+    p1.mana = p1.mana - 3
+   elseif ( p1.mana >= 0 and p1.invincible ) then
+    p1.dx = 0
+    p1.dy = 0
+    p1.ddx = 0
+    p1.ddy = 0
+    p1.y = flr(flr(p1.y+1)/8)*8
+    p1.invincible=1
+    p1.mana = p1.mana - 3
+   elseif ( p1.mana < 75 and not p1.invincible ) then
+    p1.invincible=0
+   end
+  end
+ end
+
 	if grounded() then
-		if (btnp(2)) then
-			p1.dy -= 7 // jump!
-		else
-			p1.dy = 0
-			// this keeps the player from sticking in the floor
-			p1.y = flr(flr(p1.y)/8)*8
-		end
-	else
-     if(roofed()) then 
+	 if (btnp(2)) then
+	  p1.dy -= 7 -- jump!
+    else
+		p1.dy = 0
+		// this keeps the player from sticking in the floor
+		p1.y = flr(flr(p1.y)/8)*8
+	 end	
+  else
+   if(roofed()) then 
      p1.dy=0.88
      //p1.y = flr(flr(p1.y)/8)*8
-     end
+   end
 		// gravity
-		p1.dy += 0.88
+		p1.dy += 0.77
 	end
+
+if (not btn(3,0)) or p1.mana<=0 then p1.invincible=0 end
 
  p1.x+=p1.dx
  p1.y+=p1.dy
- if (p1.mana < 100) then p1.mana+=10 end
+ if (p1.mana < 100) then p1.mana+=1 end
+ if(p1.mana < 0) then p1.mana = 0 end
 
   // update spells //
 
-  if (btn(4) and p1.mana >99 ) then
+  if (btnp(4) and p1.mana > 50 ) then
    //sfx(00)
-   spell() 
-   end
+   if(p1.facing==1) then spell(2, p1.x, p1.y+6, 117, p1.y) end
+   if(p1.facing==-1) then spell(2, 9, p1.y+6, p1.x, p1.y) end
+  end
+
+  if (btnp(5) and p1.mana > 50 ) then
+   //sfx(00)
+   spell(1, 0, 0, 7, 7) 
+  end
+
 
   for spell in all(magic) do
-   spell.x+=spell.dx
-   spell.y+=spell.dy
-   if(spell.cycle<500) spell.cycle+=1
+   if (spell.kind==1) then
+    spell.x+=spell.dx
+    spell.y+=spell.dy
+    if (spell.cycle<500) then spell.cycle+=1 end
   end
+  if (spell.kind==2) then
+   if (spell.cycle<500) then spell.cycle+=1 end
+   -- lightning bolts just chill maybe
+  end
+ end
 
  // generate new orbs and skulls //
 
-if(norbs<2) then 
+if(norbs<max_orbs) then 
    //sfx(01)
- orbgen(flr(rnd(111)-16), flr(rnd(44)-8))
+   printh("ORBGEN")
+ orbgen(flr(rnd(111)-16), flr(rnd(34)-8))
  norbs = norbs+1
 end
 
-if(nskulls<1) then
+if(nskulls<max_skulls) then
    //sfx(01)
    printh("SKULLGEN")
- skullgen(flr(rnd(111)-16), flr(rnd(44)-8))
+ skullgen(flr(rnd(111)-16), flr(rnd(34)-8))
  nskulls = nskulls+1
- printh(nskulls)
 end
 
  // update all orbs //
@@ -289,9 +410,9 @@ for orb in all(orbs) do
  elseif (orb.x-p1.x)>0 then 
   orb.dx=-0.5
  end
- if(orb.y-p1.y)<0 then 
+ if(orb.y-p1.y-4)<0 then 
   orb.dy=0.5
- elseif (orb.y-p1.y)>0 then 
+ elseif (orb.y-p1.y-4)>0 then 
   orb.dy=-0.5
  end
 
@@ -314,13 +435,17 @@ for skull in all(skulls) do
   skull.ddy=-0.03
  end
 
- skull.dx+=skull.ddx
- skull.dy+=skull.ddy
+ skull.dx+=skull.ddx*sqrt(abs(skull.x-p1.x)*abs(skull.x-p1.x)+abs(skull.y-p1.y)*abs(skull.y-p1.y))*0.03
+ skull.dy+=skull.ddy*sqrt(abs(skull.x-p1.x)*abs(skull.x-p1.x)+abs(skull.y-p1.y)*abs(skull.y-p1.y))*0.03
  skull.x+=skull.dx
  skull.y+=skull.dy
 end
 
-  // update stars //
+max_orbs   = flr(p1.score/5)
+if(max_orbs==0) max_orbs=2
+
+max_skulls = flr(p1.score/10)
+if(max_skulls==0) max_skulls=1
 
 end
 
@@ -341,17 +466,92 @@ function titledraw()
  print("PRESS Z TO START",63,96,7)
 end
 
+function boltdraw(x1,y1,x2,y2,facing,col)
+ length=(x2-x1)
+ ymid=y1-(y1-y2)/2
+
+Splittings = 5
+
+xpts={}
+if(facing==1) then
+ add(xpts, x1+10*facing)
+elseif(facing==-1) then
+ add(xpts, x2+3*facing)
+end
+
+ypts={y2+3}
+
+for pos=0,Splittings do
+  if(facing==1) then newpt=rnd(x2-(x1+10))+x1+10
+  elseif(facing==-1) then newpt=rnd(x2-x1)+x1 end
+
+ add(xpts,newpt)
+
+newypt=rnd(y1-y2)+y2
+ add(ypts,newypt) 
+end
+
+if(facing==1) then add(xpts,x2)
+elseif(facing==-1) then add(xpts,x1) end
+add(ypts,y1)
+
+sort_table(xpts,facing)
+
+for pos=2,Splittings do
+ if(facing==1) then  line(xpts[pos-1], ypts[pos-1], xpts[pos], ypts[pos], col) end
+ if(facing==-1) then line(xpts[pos-1], ypts[pos-1], xpts[pos], ypts[pos], col) end
+end
+
+ --line(x1,ymid,x2,ymid+1,12)
+end
+
+function sort_table(a, inv)
+   for i=1,#a do
+    local j = i
+    if(inv==1) then 
+     while j > 1 and a[j-1] > a[j] do
+      a[j],a[j-1] = a[j-1],a[j]
+      j = j - 1
+      end
+    elseif(inv == -1) then
+     while j > 1 and a[j-1] < a[j] do
+      a[j],a[j-1] = a[j-1],a[j]
+      j = j - 1
+    end
+   end
+ end
+end
+
 function gamedraw()
 cls()
 
- print("mlb's wizrnd",0,116,6)
- print(p1.score,55,116,6)
- print("procjam 2016",80,116,6)
+ print("mlb's wizrnd",1,115,7)
+ print(p1.score,63,115,7)
+ print("procjam 2016",80,115,7)
+ rectfill(0,121,127*(p1.mana/100),127,12)
+ line(63,122,63,126,7)
+ print("mana",1,122,7)
 
  // draw the stars
  for st in all(stars) do
-  pset(st.x,st.y,6)
+  pset(st.x,st.y,7)
  end
+
+// draw a constellation
+for ct in all(constellations) do
+ line(ct.x1,ct.y1,ct.x2,ct.y2,6)
+end
+for ct in all(constellations) do
+ pset(ct.x1,ct.y1,7)
+ pset(ct.x1+1,ct.y1,7)
+ pset(ct.x1-1,ct.y1,7)
+ pset(ct.x1+1,ct.y1+1,7)
+ pset(ct.x1-1,ct.y1+1,7)
+ pset(ct.x1+1,ct.y1-1,7)
+ pset(ct.x1-1,ct.y1-1,7)
+ pset(ct.x1,ct.y1+1,7)
+ pset(ct.x1,ct.y1-1,7)
+end
 
 // draw the map
 map(0,0, 0,0, 16,16)
@@ -361,7 +561,14 @@ if (p1.dx>=0) then p1.facing = 1 end
 if (p1.dx<0) then p1.facing = -1 end
 
 if (grounded()==true) then
- if btn(4,0) then  
+ if p1.invincible==1 and p1.mana>=0 and btn(3,0) then
+  circfill(p1.x+4+flr(rnd(4)-2),  p1.y+4+flr(rnd(4)-2),  7,  13)
+  circfill(p1.x+4+flr(rnd(4)-2),  p1.y+4+flr(rnd(4)-2),  7,  12)
+  circfill(p1.x+4+flr(rnd(4)-2),  p1.y+4+flr(rnd(4)-2),  7,  6)
+  circfill(p1.x+4+flr(rnd(4)-2),  p1.y+4+flr(rnd(4)-2),  7,  7)
+  if (p1.facing==1) then spr(20,p1.x,p1.y,1,1,false,false) end -- shield sprite
+  if (p1.facing==-1) then spr(20,p1.x,p1.y,1,1,true,false) end
+ elseif btn(4,0) then  
   if (p1.facing==1)  then spr(24,p1.x,p1.y,1,1,false,false) end
   if (p1.facing==-1) then spr(24,p1.x,p1.y,1,1,true,false) end
  else
@@ -379,19 +586,56 @@ if (grounded()!=true) then
  end
 end
 
+  // draw the map
+map(0,0, 0,0, 16,16)
+
+if(enemystep>3) then
+  skullcolvec={8, 9, 10,11}
+  orbphase = orbphase*-1
+  skullcol1 = skullcolvec[flr(rnd(4))]
+  skullcol2 = skullcolvec[flr(rnd(4))]
+ enemystep=0 
+end
+
 // draw the orbs
 for orb in all(orbs) do
- spr(33,orb.x,orb.y)
+ col=7
+ circfill(orb.x, orb.y, 4, col)
+  if(orbphase>0) then col = 12
+  elseif(orbphase<0) then col = 1 end
+ circfill(orb.x, orb.y, 3, col)
+  if(orbphase>0) then col = 12
+  elseif(orbphase<0) then col = 12 end
+ circfill(orb.x, orb.y, 2,col)
+ col=7
+ circfill(orb.x, orb.y, 1, col)
+
 end
 
 // draw the skulls
 for skull in all(skulls) do
- spr(49,skull.x,skull.y)
+ circfill(skull.x,skull.y, 4, skullcol1)
+ circfill(skull.x,skull.y, 2, skullcol2)
 end
+
+enemystep=enemystep+1
 
 // draw the spells
 for spell in all(magic) do
- if(spell.kind==1) then              // sweet fireball type
+ if(spell.kind==2) then              // sweet lightning bolt type
+    if(spell.lifetime > 0 and spell.lifetime%3==0) then
+      if flr(rnd(2))==0 then col=7 end
+      if flr(rnd(2))==1 then col=12 end
+      boltdraw(spell.box.x1,spell.box.y1-2,spell.box.x2,spell.box.y2,p1.facing,col)
+      if flr(rnd(2))==1 then col=7 end
+      if flr(rnd(2))==0 then col=12 end
+      boltdraw(spell.box.x1,spell.box.y1+2,spell.box.x2,spell.box.y2-2,p1.facing,col)
+      if flr(rnd(2))==0 then col=7 end
+      if flr(rnd(2))==1 then col=12 end
+      boltdraw(spell.box.x1,spell.box.y1+2,spell.box.x2,spell.box.y2,p1.facing,col)
+     end
+    spell.lifetime=spell.lifetime-1
+ elseif(spell.kind==1) then              // sweet fireball type
   if(flr(spell.element)==0) then   // fire
    for i=0,flr(rnd(spell.cycle)) do
      pset(spell.x,spell.y,8)
@@ -462,13 +706,13 @@ for spell in all(magic) do
      pset(spell.x-4*sgn(spell.dx)*flr(rnd(i%3)), spell.y-flr(rnd(i%2)),          1)
      pset(spell.x-5*sgn(spell.dx)*flr(rnd(i%4)), spell.y+flr(rnd(i%1)),         1)
     end
-   end
-  end
+   end --end cycle loop
+  end -- end if element
+ end -- end if kind
+if((spell.x>119 or spell.x<-119) or spell.lifetime==0) then
+ del(magic,spell)
  end
- if(spell.x>119 or spell.x<-119) then 
-  del(magic,spell)
- end
-end
+end -- this should end the spell loop
 
 // draw some debug
 // rectfill(p1.x+8, p1.y,   p1.x+8,  p1.y+8,  12)
@@ -478,8 +722,8 @@ end
 
 function gameoverdraw()
   //sfx(02)
-  print("game over", 23,63)
- print("press z to replay", 23,95)
+ print("game over", 43,63, 7)
+ print("press z to replay", 33,95, 7)
  if btn(4,0) then
   gameinit()
  end
@@ -496,8 +740,8 @@ __gfx__
 0000000022222222cccccccc66666666000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000ccc00060cc000050577776770000005000000050000000500000500000005000000000000000000000000000000000000000000000000000
 00000000000000000cccc0860ccc0080787667770000008000000080000000800000800000008000000000000000000000000000000000000000000000000000
-0000000000000000077f068000ff005077566777c0000050c0000050ccc00050000005000cc00500000000000000000000000000000000000000000000000000
-0000000000000000077700600ccccf50776567770cc000500cc000500ccc0050ccc00500cccc0500000000000000000000000000000000000000000000000000
+0000000000000000077f068000ff005077566777c000005000000050ccc00050000005000cc00500000000000000000000000000000000000000000000000000
+0000000000000000077700600ccccf50776567770cc00050ccc000500ccc0050ccc00500cccc0500000000000000000000000000000000000000000000000000
 00000000000cc0000c77cff00fcc0050776657770ccc00500ccc00500777cf500ccc0050c777cf50000000000000000000000000000000000000000000000000
 0000000000ccc9000cc7006000cc0050776665770777cf500777cf500cc700500777cf500cc70050000000000000000000000000000000000000000000000000
 0000000000cccc000ccc706000cc0050776767570cc700500cc700500ccc00500cc700050ccc0005000000000000000000000000000000000000000000000000
