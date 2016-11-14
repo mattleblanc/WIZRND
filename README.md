@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/mattleblanc/WIZRND/gh-pages/WIZ.png" width="250" align="right" alt="closebyjets" hspace="20"/>
+
 # WIZRND
 
 WIZRND, a pico-8 contribution to [#ProcJam 2016](https://itch.io/jam/procjam).
