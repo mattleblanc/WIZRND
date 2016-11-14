@@ -4,6 +4,14 @@
 
 WIZRND, a pico-8 contribution to [#ProcJam 2016](https://itch.io/jam/procjam).
 
+arrow keys to move
+
+up to jump
+
+down while standing to channel a shield
+
+z to shoot lightning, x to shoot a magic missle
+
 ### You can play it on itch.io [here](coming soon), or on github [here](https://mattleblanc.github.io/WIZRND/).
 
 The main idea behind this project was to learn about developing for the PICO-8 platform -- although I have some programming experience, I've never made a game before. My goals were to simply make anything that was remotely playable, which actually didn't take that long.
