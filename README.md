@@ -21,3 +21,6 @@ Since I'm interested in procedural generation anyway and didn't have a lot of sp
 Awesome | .GIFs | PICO-8 Cart
 :-------------------------:|:-------------------------:|:-------------------------:
 <img src="https://github.com/mattleblanc/WIZRND/blob/gh-pages/WIZRND_1.gif?raw=true"> | <img src="https://github.com/mattleblanc/WIZRND/blob/gh-pages/WIZRND_2.gif?raw=true"> | <img src="https://github.com/mattleblanc/WIZRND/blob/gh-pages/wizrnd.png?raw=true">
+
+<img src="https://github.com/mattleblanc/WIZRND/blob/gh-\
+pages/stars.gif?raw=true">
