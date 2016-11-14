@@ -2,7 +2,7 @@
 
 # WIZRND
 
-WIZRND, a pico-8 contribution to [#ProcJam 2016](https://itch.io/jam/procjam).
+[WIZRND](http://www.lexaloffle.com/bbs/?tid=28063), a pico-8 contribution to [#ProcJam 2016](https://itch.io/jam/procjam).
 
 arrow keys to move
 
